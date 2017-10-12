@@ -19,6 +19,7 @@ import glob
 import logging
 from operator import itemgetter
 import os
+import subprocess as sp
 
 
 def get_sorted_pvals(file_list):
@@ -30,19 +31,13 @@ def get_sorted_pvals(file_list):
     p-value.
     '''
     list = []
-    ticker = 0
     for file in file_list:
         with open(file, 'r') as pval_file:
             for line in pval_file:
                 if not line == '\n':
                     line_list = line.split(',')
                     line_list[1] = float(line_list[1].strip('\n'))
-                    # line_list[1] = float(line_li)
-                    if line_list not in list:
-                        list.append(line_list)
-                    # list.append(line_list)
-                    else:
-                        ticker += 1
+                    list.append(line_list)
     list.sort(key=itemgetter(1))
     logging.info('The total number of experiments tested is:')
     logging.info(len(list))
@@ -101,6 +96,32 @@ if __name__ == '__main__':
     weighted_path = os.path.join(pval_file_path, '*/output/weighted*')
     random_files = glob.glob(random_path)
     weighted_files = glob.glob(weighted_path)
+
+    weighted_names = {}
+    for file in weighted_files:
+        name = os.path.basename(file)
+        if name in weighted_names:
+            old_length = int(sp.check_output(['wc', '-l', weighted_names[name]]
+                                             ).split()[0])
+
+            new_length = int(sp.check_output(['wc', '-l', file]).split()[0])
+            if old_length > new_length:
+                continue
+        weighted_names[name] = file
+
+    random_names = {}
+    for file in random_files:
+        name = os.path.basename(file)
+        if name in random_names:
+            old_length = int(sp.check_output(['wc', '-l', random_names[name]]
+                                             ).split()[0])
+            new_length = int(sp.check_output(['wc', '-l', file]).split()[0])
+            if old_length > new_length:
+                continue
+        random_names[name] = file
+
+    weighted_files = weighted_names.values()
+    random_files = random_names.values()
 
     weighted_pvals = get_sorted_pvals(weighted_files)
     random_pvals = get_sorted_pvals(random_files)
