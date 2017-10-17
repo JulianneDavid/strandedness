@@ -11,11 +11,16 @@ Optional input:
     Path to fastq-dump
     Path to hisat2
     Path to directory to store output files
-
+    Number of "useful" reads required after running.
+    Multiplier: how many reads are believed to be necessary to download to
+        obtain the desired number of junction reads.
+    Max attmpts: how many times to try fastq-dump read download, and hisat2
+        read alignment, before moving on to the next set of downloads or the
+        next SRA accession number.
+    Logging level: INFO is the only option supported right now.
 
 Improvements to be made:
     - checking for paired-end experiment - is just the "PAIRED" tag OK?
-    - How many useful reads are required?
 """
 
 import argparse
@@ -24,17 +29,22 @@ from datetime import datetime
 import gzip
 from itertools import groupby
 import logging
+import mmh3
 from operator import itemgetter
 import os
 import random
 import re
 import subprocess as sp
 from scipy import stats
+from time import sleep
+
+
+class TimeOut(Exception): pass
 
 
 def get_hisat_input(required, multiplier, total, fastq_path, acc, output,
-                    pairedtag, max_attempts):
-    '''Samples & downloads fastq reads, and prepares them for a hisat2 -12 run.
+                    pairedtag, fail_file):
+    """Samples & downloads fastq reads, and prepares them for a hisat2 -12 run.
 
     Input:
         required: the target number of "useful"/junction reads desired (int)
@@ -48,6 +58,8 @@ def get_hisat_input(required, multiplier, total, fastq_path, acc, output,
         output: the output path for writing out (string)
         paired_tag: whether the experiment is paired or not, only necessary for
             processing multiple reads per spot (true/false)
+        fail_file: the file to which to write any failed accession numbers for
+            re-running later.
 
     A list of unique random numbers between 1 and the total number of spots is
     generated, then the reads at those spots are downloaded with fastq-dump.
@@ -60,13 +72,14 @@ def get_hisat_input(required, multiplier, total, fastq_path, acc, output,
 
     Returns all of the sampled reads formatted for batch alignment by hisat2,
     and the list of random spots (to be saved for later reference).
-    '''
+    """
+    max_time = 300
     dl_start = datetime.now()
     spot_path = os.path.join(output, '{}_spots.txt'.format(acc))
     with open(spot_path, 'w') as spot_file:
         required_spots = required * multiplier
         num_bins = 100
-        # num_bins = 10
+#         num_bins = 10
         bin_spots = required_spots/num_bins
         bin_size = total/num_bins
         bin = 1
@@ -74,12 +87,17 @@ def get_hisat_input(required, multiplier, total, fastq_path, acc, output,
         while bin <= num_bins:
             bin_start = (bin - 1) * bin_size + 1
             bin_stop = bin * bin_size
+            bin += 1
             start_spot = random.randint(bin_start, bin_stop - bin_spots)
             spot_file.write('{}\n'.format(start_spot))
             spot = str(start_spot)
             stop_spot = str(start_spot + bin_spots)
-            attempt = 0
-            while attempt < max_attempts:
+            bin_time = 0
+            bin_start = datetime.now()
+            delay = 1
+            attempt = 1
+            back_off = 3
+            while bin_time <= max_time:
                 try:
                     fastq = sp.check_output(['{}'.format(fastq_path), '-I',
                                              '-B', '-W', '-E', '--split-spot',
@@ -89,9 +107,20 @@ def get_hisat_input(required, multiplier, total, fastq_path, acc, output,
                 except:
                     logging.info('acc {} failed: attempt {}'.format(acc,
                                                                     attempt))
+                    delay = delay * back_off
+                    logging.info('waiting {} sec before retry'.format(delay))
+                    sleep(delay)
                     attempt += 1
+                    bin_time = (datetime.now() - bin_start).total_seconds()
             else:
-                continue
+                logging.info('Accession number {} download timed out.  Moving '
+                             'on to the next accession number.\n'.format(acc))
+                with open(fail_file, 'w') as failed:
+                    failed.write('{}\n'.format(acc))
+                raise TimeOut('This SRA accession number download has timed '
+                              'out.  See the standard output for the '
+                              'fastq-dump error messages.  Moving on to the '
+                              'next accession number.')
 
             lines = fastq.split('\n')
             format_lines = []
@@ -104,7 +133,6 @@ def get_hisat_input(required, multiplier, total, fastq_path, acc, output,
                 if i % last_line == 0:
                     read_format.extend(['\t'.join(format_lines) + '\n'])
                     format_lines = []
-            bin += 1
         read_input = ''.join(read_format)
         hisat_formatted_input = read_input
         dl_end = datetime.now()
@@ -115,8 +143,7 @@ def get_hisat_input(required, multiplier, total, fastq_path, acc, output,
 
 
 def align_reads(hisat2_path, reference_genome, outpath, acc, reads):
-    '''Returns SAM format reads aligned by hisat2.
-
+    """Returns SAM format reads aligned by hisat2.
     Input:
         hisat2_path: the path to hisat2 (string)
         reference_genome: the path to the reference genome to be used for
@@ -127,7 +154,7 @@ def align_reads(hisat2_path, reference_genome, outpath, acc, reads):
         temp_dir: dir in which to put temporary fastq
 
     Returns a list of aligned reads in SAM format.
-    '''
+    """
     align_start = datetime.now()
     reads_path = os.path.join(outpath, '{}_reads.sam.gz'.format(acc))
     align_command = ('set -exo pipefail; {h2} --no-head --12 - -x {ref} | gzip'
@@ -145,7 +172,7 @@ def align_reads(hisat2_path, reference_genome, outpath, acc, reads):
 
 
 def filter_alignments(alignments, paired_tag):
-    '''Returns only alignments with highest alignment scores.
+    """Returns only alignments with highest alignment scores.
 
     Input:
         alignment_list: list of all returned alignments for one read or pair.
@@ -162,7 +189,7 @@ def filter_alignments(alignments, paired_tag):
 
     Returns a list of alignments with the highest alignment scores, either
     first or second read only if paired end.
-    '''
+    """
     # results = re.findall('(^.*AS:i:([+-]?\d+).*$)', '\n'.join(alignment_list),
     #                      flags=re.M)
     # if not results:
@@ -182,6 +209,7 @@ def filter_alignments(alignments, paired_tag):
     primary_alignments = [alignments[i] for i, alignment_score
                           in enumerate(alignment_scores)
                           if alignment_score == max_alignment_score]
+
     if paired_tag:
         first_reads = random.getrandbits(1)
         single_end = []
@@ -199,7 +227,7 @@ def filter_alignments(alignments, paired_tag):
 
 
 def read_sense(SAM_flag, plus_or_minus):
-    '''Checks a read's SAM flag and XS:A: tag, and determines its "direction".
+    """Checks a read's SAM flag and XS:A: tag, and determines its "direction".
 
     Input the SAM flag (int) and XS:A:? tag (string) from the aligned read.
 
@@ -209,7 +237,7 @@ def read_sense(SAM_flag, plus_or_minus):
 
     Return the read's "sense"ness - if bit = 1, the read is "sense", otherwise
     it is "antisense."
-    '''
+    """
     fwd_gene = plus_or_minus[0] == 'XS:A:+'
     paired = SAM_flag & 1 == 1
     rev_read = SAM_flag & 16 == 16
@@ -257,13 +285,13 @@ if __name__ == '__main__':
     max_attempts = args.max_attempts
     log_mode = args.log_level
 
-
-    random.seed(5)
+    minimum_spots = 10000000
     useful = True
     name_tag = os.path.basename(sra_file).split('.')[0]
     now = str(datetime.now())
     log_file = os.path.join(out_path, '{}_{}_log.txt'.format(name_tag, now))
     logging.basicConfig(filename=log_file, level=log_mode)
+    fail_file = os.path.join(out_path, 'failed_expts_{}.txt'.format(name_tag))
     pv_rand = os.path.join(out_path, 'random_pvals_{}.txt'.format(name_tag))
     pv_weigh = os.path.join(out_path, 'weighted_pvals_{}.txt'.format(name_tag))
     with open(sra_file) as sra_array, \
@@ -276,13 +304,22 @@ if __name__ == '__main__':
                                           experiment[15] == 'PAIRED')
 
             # to filter out single cell reads
-            minimum_spots = 10000000
             if num_spots < minimum_spots:
+                logging.info('SRA {} skipped due to too few spots\n'
+                             ''.format(sra_acc))
                 continue
 
-            hisat_input = get_hisat_input(required_reads, read_multiplier,
-                                          num_spots, fastq_dump, sra_acc,
-                                          out_path, paired, max_attempts)
+            seed = mmh3.hash(sra_acc)
+            random.seed(seed)
+            logging.info('the random seed is {}'.format(seed))
+
+            try:
+                hisat_input = get_hisat_input(required_reads, read_multiplier,
+                                              num_spots, fastq_dump, sra_acc,
+                                              out_path, paired, fail_file)
+            except TimeOut:
+                continue
+
             attempt = 0
             while attempt < max_attempts:
                 reads_path, failure = align_reads(hisat2, ref_genome, out_path,
@@ -345,4 +382,3 @@ if __name__ == '__main__':
             print >>pval_rand_file, '{},{}'.format(sra_acc, random_p)
             print >>pval_weigh_file, '{},{}'.format(sra_acc, weighted_p)
             # pval_file.write('{},{}\n'.format(sra_acc, p_value))
-            
