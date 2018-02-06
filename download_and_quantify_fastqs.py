@@ -18,7 +18,7 @@ quantification with Salmon.
 
 import argparse
 from datetime import datetime
-import logging
+# import logging
 import mmh3
 import os
 import random
@@ -80,19 +80,19 @@ def collect_fastq_files(fastq_path, accs, fail_file):
                                                 '--split-files',
                                                 '--skip-technical', '-O',
                                                 fastq_output, acc])
-                logging.info('fastq-dump was successful; std output was:')
-                logging.info(fastq_stdout)
+                # logging.info('fastq-dump was successful; std output was:')
+                # logging.info(fastq_stdout)
                 break
             except:
-                logging.info('acc {} failed: attempt {}'.format(acc, attempt))
+                # logging.info('acc {} failed: attempt {}'.format(acc, attempt))
                 delay = delay * back_off
-                logging.info('waiting {} sec before retry'.format(delay))
+                # logging.info('waiting {} sec before retry'.format(delay))
                 sleep(delay)
                 attempt += 1
                 bin_time = (datetime.now() - bin_start).total_seconds()
         else:
-            logging.info('Accession number {} download timed out.  Moving '
-                         'on to the next accession number.\n'.format(acc))
+            # logging.info('Accession number {} download timed out.  Moving '
+            #              'on to the next accession number.\n'.format(acc))
             with open(fail_file, 'w') as failed:
                 failed.write('{}\n'.format(acc))
             raise TimeOut('This SRA accession number download has timed '
@@ -103,7 +103,7 @@ def collect_fastq_files(fastq_path, accs, fail_file):
     dl_end = datetime.now()
     time_difference = dl_end - dl_start
     elapsed_time = time_difference.total_seconds()
-    logging.info('total download time was {} seconds\n'.format(elapsed_time))
+    # logging.info('total download time was {} seconds\n'.format(elapsed_time))
     return fastq_output
 
 
@@ -246,9 +246,9 @@ def call_salmon_quantification(salmon_path, salmon_ind, outpath, acc, paired):
     quant_end = datetime.now()
     time_difference = quant_end - quant_start
     elapsed_time = time_difference.total_seconds()
-    logging.info('quantification for {} reads complete'.format(acc))
-    logging.info('output stored in {} and {}'.format(orig_out, shuf_out))
-    logging.info('salmon quantification time was {}'.format(elapsed_time))
+    # logging.info('quantification for {} reads complete'.format(acc))
+    # logging.info('output stored in {} and {}'.format(orig_out, shuf_out))
+    # logging.info('salmon quantification time was {}'.format(elapsed_time))
     return
 
 
@@ -265,6 +265,8 @@ if __name__ == '__main__':
     parser.add_argument('--salmon-index', '-i', required=True, help='Provide '
                         'the path to the index to be used for salmon '
                         'quantification.')
+    parser.add_argument('--sample-size', '-ss', default=100, help='Give the '
+                        'number of fastq files to download.')
     parser.add_argument('--output-path', '-o', default='./', help='give path '
                         'for output files: shuffled and unshuffled fastq '
                         'files and salmon quantification output.')
@@ -277,18 +279,19 @@ if __name__ == '__main__':
     fastq_dump = args.fastq_dump_path
     salmon = args.salmon_path
     salmon_index = args.salmon_index
+    sample_size = args.sample_size
     out_path = args.output_path
     log_mode = args.log_level
 
     name_tag = os.path.basename(sra_file).split('.')[0]
     now = str(datetime.now())
-    log_file = os.path.join(out_path, '{}_{}_log.txt'.format(name_tag, now))
-    logging.basicConfig(filename=log_file, level=log_mode)
+    # log_file = os.path.join(out_path, '{}_{}_log.txt'.format(name_tag, now))
+    # logging.basicConfig(filename=log_file, level=log_mode)
     fail_file = os.path.join(out_path, 'failed_expts_{}.txt'.format(name_tag))
     pv_rand = os.path.join(out_path, 'random_pvals_{}.txt'.format(name_tag))
     pv_weigh = os.path.join(out_path, 'weighted_pvals_{}.txt'.format(name_tag))
 
-    accession_numbers = sample_stranded_experiments(sra_file)
+    accession_numbers = sample_stranded_experiments(sra_file, sample_size)
 
     fastq_path = collect_fastq_files(fastq_dump, accession_numbers, fail_file)
 
