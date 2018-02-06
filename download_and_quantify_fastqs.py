@@ -273,7 +273,7 @@ if __name__ == '__main__':
                         default='INFO', help='choose what logging mode to run')
 
     args = parser.parse_args()
-    sra_file = args.sra_file
+    sra_file = args.stranded_list
     fastq_dump = args.fastq_dump_path
     salmon = args.salmon_path
     salmon_index = args.salmon_index
