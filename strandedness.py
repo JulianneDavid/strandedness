@@ -37,6 +37,7 @@ import re
 import subprocess as sp
 from scipy import stats
 from time import sleep
+import sys
 
 
 class TimeOut(Exception): pass
@@ -229,6 +230,10 @@ def filter_alignments(alignments, paired_tag):
 def read_sense(SAM_flag, plus_or_minus):
     """Checks a read's SAM flag and XS:A: tag, and determines its "direction".
 
+    "Read sense" is terminology we introduce that is true (or "+") if
+    alignment orientation agrees with the sense strand as reported in the
+    XS:A flag.
+
     Input the SAM flag (int) and XS:A:? tag (string) from the aligned read.
 
     We have two states, arbitrarily called "sense" and "antisense," indicating
@@ -245,7 +250,7 @@ def read_sense(SAM_flag, plus_or_minus):
     return (fwd_gene != rev_read) == (first_read or not paired)
 
 
-if __name__ == '__main__':
+if __name__ == '__main__' and '--test' not in sys.argv:
     parser = argparse.ArgumentParser(description='Determine sample '
                                                  'strandedness.')
     parser.add_argument('--sra-file', '-s', required=True, help='File with '
@@ -273,8 +278,11 @@ if __name__ == '__main__':
     parser.add_argument('--log-level', '-l', choices=['DEBUG', 'INFO', 'ERROR'
                                                       'WARNING', 'CRITICAL'],
                         default='INFO', help='choose what logging mode to run')
-
+    parser.add_argument('--test', action='store_const', const=True,
+                        default=False,
+                        help='run unit tests and exit')
     args = parser.parse_args()
+
     sra_file = args.sra_file
     ref_genome = args.ref_genome
     fastq_dump = args.fastq_dump_path
@@ -382,3 +390,35 @@ if __name__ == '__main__':
             print >>pval_rand_file, '{},{}'.format(sra_acc, random_p)
             print >>pval_weigh_file, '{},{}'.format(sra_acc, weighted_p)
             # pval_file.write('{},{}\n'.format(sra_acc, p_value))
+
+elif __name__ == '__main__':
+    # Test units
+    del sys.argv[1:] # Don't choke on extra command-line parameters
+    import unittest
+
+    class TestReadSense(unittest.TestCase):
+        """ Tests read_sense(). """
+        
+        def setUp(self):
+            pass
+
+        def test_minus_strand_examples(self):
+            """ Fails if read sense is incorrect for single-end alignments. """
+            self.assertEqual(read_sense(16, ['XS:A:-']), True)
+            self.assertEqual(read_sense(0, ['XS:A:-']), False)
+
+        def test_plus_strand_examples(self):
+            """ Fails if read sense is incorrect for single-end alignments. """
+            self.assertEqual(read_sense(16, ['XS:A:+']), False)
+            self.assertEqual(read_sense(0, ['XS:A:+']), True)
+
+        def test_plus_strand_paired_end_example(self):
+            """ Fails if read sense is incorrect for paired-end alignments. """
+            # 147 = 1 (multisegments) + 2 (each segment mapped) +
+            # 128 (second segment in template) + 16 (reverse complemented)
+            self.assertEqual(read_sense(147, ['XS:A:+']), True)
+
+        def tearDown(self):
+            pass
+
+    unittest.main()
