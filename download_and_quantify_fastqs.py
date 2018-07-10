@@ -265,8 +265,8 @@ if __name__ == '__main__':
     parser.add_argument('--salmon-index', '-i', required=True, help='Provide '
                         'the path to the index to be used for salmon '
                         'quantification.')
-    parser.add_argument('--sample-size', '-ss', default=100, help='Give the '
-                        'number of fastq files to download.')
+    parser.add_argument('--sample-size', '-ss', type=int, default=100, 
+                        help='Give the number of fastq files to download.')
     parser.add_argument('--output-path', '-o', default='./', help='give path '
                         'for output files: shuffled and unshuffled fastq '
                         'files and salmon quantification output.')
