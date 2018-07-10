@@ -124,14 +124,15 @@ def artificially_unstrand(accession, fastq_path):
     """Makes a stranded fastq file randomly, artificially "unstranded."
 
     Required input:
-        .fastq file: stranded
-        second .fastq file if the experiment is paired-end
+        accession: SRA accession number for generating the fastq file names
+        path for fastq file storage
 
-    Optional input:
-        .fastq file of paired end reads, if the experiment is paired end.
-        output directory: where the artificially unstranded fastq should be
-        stored.
+    This function generates the path names for the fastq files, artificially, 
+    randomly "unstrands" the reads, and writes the new fastq output to the
+    fastq storage directory.
 
+    Output:
+        Tag labeling the experiment as paired or single-end.
     """
     # name_tag = os.path.basename(fastq_file_1).split('.')[0].split('_')[0]
     seed = mmh3.hash(accession)
@@ -191,7 +192,7 @@ def artificially_unstrand(accession, fastq_path):
 def call_salmon_quantification(salmon_path, salmon_ind, outpath, acc, paired):
     """Runs salmon in quantification mode
     Input:
-        salmon_path: the path to hisat2 (string)
+        salmon_path: the path to salmon (string)
         salmon_ind: the path to the reference genome to be used for
             alignment (string)
         outpath: where we will store the new salmon quantification information
