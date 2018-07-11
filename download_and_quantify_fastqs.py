@@ -229,7 +229,7 @@ def call_salmon_quantification(salmon_path, salmon_ind, outpath, acc, paired):
                                '-r {r} -o {out} --posBias --gcBias'
                                ).format(sal=salmon_path, ref=salmon_ind,
                                         r=fq_orig_1, out=orig_out)
-        fq_shuf_1 = os.path.join(fastq_path, '{}_shuffled_2.fastq'.format(acc))
+        fq_shuf_1 = os.path.join(fastq_path, '{}_shuffled_1.fastq'.format(acc))
         salmon_command_shuf = ('set -exo pipefail; {sal} quant -i {ref} -l A '
                                '-r {r} -o {out} --posBias --gcBias'
                                ).format(sal=salmon_path, ref=salmon_ind,
@@ -250,7 +250,7 @@ def call_salmon_quantification(salmon_path, salmon_ind, outpath, acc, paired):
     elapsed_time = time_difference.total_seconds()
     logging.info('quantification for {} reads complete'.format(acc))
     logging.info('output stored in {} and {}'.format(orig_out, shuf_out))
-    logging.info('salmon quantification time was {}'.format(elapsed_time))
+    logging.info('salmon quantification time was {}\n'.format(elapsed_time))
     return
 
 
