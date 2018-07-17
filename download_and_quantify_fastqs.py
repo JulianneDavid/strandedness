@@ -51,7 +51,7 @@ def sample_stranded_experiments(sra_containing_file, sample_size):
     return accession_numbers
 
 
-def collect_fastq_files(fastq_path, accs, fail_file):
+def collect_fastq_files(fastq_path, accs, fail_file, success_file):
     """Downloads fastq reads and returns their directory
 
     Input:
@@ -63,12 +63,20 @@ def collect_fastq_files(fastq_path, accs, fail_file):
 
     Returns the path where the new fastq files are stored.
     """
+    existing_fastqs = []
+    with open(success_file, 'a+') as success:
+        for line in success:
+            existing_fastqs.append(line.strip('\n'))
+            
+    downloaded_accs 
     max_time = 3000
     dl_start = datetime.now()
     fastq_output = os.path.join(out_path, 'original_fastq_files')
     back_off = 3
 
     for acc in accs:
+        if acc in existing_fastqs:
+            continue
         bin_time = 0
         bin_start = datetime.now()
         delay = 1
@@ -82,6 +90,8 @@ def collect_fastq_files(fastq_path, accs, fail_file):
                                                 fastq_output, acc])
                 logging.info('fastq-dump was successful; std output was:')
                 logging.info(fastq_stdout)
+                with open(success_file, 'a') as success:
+                    success.write('{}\n'.format(acc))
                 break
             except:
                 logging.info('acc {} failed: attempt {}'.format(acc, attempt))
@@ -93,7 +103,7 @@ def collect_fastq_files(fastq_path, accs, fail_file):
         else:
             logging.info('Accession number {} download timed out.  Moving '
                          'on to the next accession number.\n'.format(acc))
-            with open(fail_file, 'w') as failed:
+            with open(fail_file, 'a') as failed:
                 failed.write('{}\n'.format(acc))
             raise TimeOut('This SRA accession number download has timed '
                           'out.  See the standard output for the '
@@ -275,6 +285,8 @@ if __name__ == '__main__':
     parser.add_argument('--log-level', '-l', choices=['DEBUG', 'INFO', 'ERROR'
                                                       'WARNING', 'CRITICAL'],
                         default='INFO', help='choose what logging mode to run')
+    parser.add_argument('--downloaded-sras', '-s', help='Give the path to file'
+                        ' with already-downloaded sra accession numbers.')
 
     args = parser.parse_args()
     sra_file = args.stranded_list
@@ -284,18 +296,23 @@ if __name__ == '__main__':
     sample_size = args.sample_size
     out_path = args.output_path
     log_mode = args.log_level
+    success_file = args.downloaded_sras
 
     name_tag = os.path.basename(sra_file).split('.')[0]
     now = str(datetime.now())
     log_file = os.path.join(out_path, '{}_{}_log.txt'.format(name_tag, now))
     logging.basicConfig(filename=log_file, level=log_mode)
     fail_file = os.path.join(out_path, 'failed_expts_{}.txt'.format(name_tag))
+    if success_file is None:
+        success_file = os.path.join(out_path, 
+                                    'downloaded_sras_{}.txt'.format(name_tag))
     pv_rand = os.path.join(out_path, 'random_pvals_{}.txt'.format(name_tag))
     pv_weigh = os.path.join(out_path, 'weighted_pvals_{}.txt'.format(name_tag))
 
     accession_numbers = sample_stranded_experiments(sra_file, sample_size)
 
-    fastq_path = collect_fastq_files(fastq_dump, accession_numbers, fail_file)
+    fastq_path = collect_fastq_files(fastq_dump, accession_numbers, fail_file,
+                                     success_file)
 
     for acc in accession_numbers:
         paired = artificially_unstrand(acc, fastq_path)
