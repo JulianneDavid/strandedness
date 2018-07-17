@@ -64,7 +64,7 @@ def collect_fastq_files(fastq_path, accs, fail_file, success_file):
     Returns the path where the new fastq files are stored.
     """
     existing_fastqs = []
-    with open(success_file, 'a+') as success:
+    with open(success_file, 'r') as success:
         for line in success:
             existing_fastqs.append(line.strip('\n'))
             
