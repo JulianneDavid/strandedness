@@ -285,7 +285,7 @@ if __name__ == '__main__':
     parser.add_argument('--log-level', '-l', choices=['DEBUG', 'INFO', 'ERROR'
                                                       'WARNING', 'CRITICAL'],
                         default='INFO', help='choose what logging mode to run')
-    parser.add_argument('--downloaded-sras', '-s', help='Give the path to file'
+    parser.add_argument('--downloaded-sras', '-d', help='Give the path to file'
                         ' with already-downloaded sra accession numbers.')
 
     args = parser.parse_args()
