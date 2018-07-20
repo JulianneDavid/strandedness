@@ -68,7 +68,7 @@ def collect_fastq_files(fastq_path, accs, fail_file, success_file):
         for line in success:
             existing_fastqs.append(line.strip('\n'))
             
-    downloaded_accs 
+    # downloaded_accs 
     max_time = 3000
     dl_start = datetime.now()
     fastq_output = os.path.join(out_path, 'original_fastq_files')
