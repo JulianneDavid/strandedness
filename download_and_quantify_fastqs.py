@@ -77,6 +77,8 @@ def collect_fastq_files(fastq_path, accs, fail_file, success_file):
     for acc in accs:
         if acc in existing_fastqs:
             continue
+        if acc == 'SRR5575952':
+            continue
         bin_time = 0
         bin_start = datetime.now()
         delay = 1
