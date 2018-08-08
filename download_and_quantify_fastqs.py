@@ -73,11 +73,18 @@ def collect_fastq_files(fastq_path, accs, fail_file, success_file):
     dl_start = datetime.now()
     fastq_output = os.path.join(out_path, 'original_fastq_files')
     back_off = 3
-
+    skip_next = False
     for acc in accs:
         if acc in existing_fastqs:
             continue
         if acc == 'SRR5575952':
+            continue
+        if acc == 'SRR4053711':
+            skip_next = True
+            continue
+        else:
+            skip_next = False
+        if skip_next:
             continue
         bin_time = 0
         bin_start = datetime.now()
