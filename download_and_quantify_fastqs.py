@@ -78,6 +78,8 @@ def collect_fastq_files(fastq_path, accs, fail_file, success_file):
             continue
         if acc == 'SRR5575952':
             continue
+        if acc == 'SRR2960573':
+            continue
         print('collecting fastq {}'.format(acc))
         bin_time = 0
         bin_start = datetime.now()
