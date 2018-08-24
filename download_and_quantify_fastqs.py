@@ -73,9 +73,10 @@ def collect_fastq_files(fastq_path, accs, fail_file, success_file):
     dl_start = datetime.now()
     fastq_output = os.path.join(out_path, 'original_fastq_files')
     back_off = 3
+    bad_accs = ['SRR5575952', 'SRR2960573', 'ERR1837056']
     for acc in accs:
-        logging.info('current acc is {}'.format(acc))
-        if acc in existing_fastqs or acc in ['SRR5575952', 'SRR2960573']:
+        # logging.info('current acc is {}'.format(acc))
+        if acc in existing_fastqs or acc in bad_accs:
             logging.info('skipping acc {}'.format(acc))
             continue
         logging.info('\ncollecting fastq {}'.format(acc))
