@@ -74,14 +74,11 @@ def collect_fastq_files(fastq_path, accs, fail_file, success_file):
     fastq_output = os.path.join(out_path, 'original_fastq_files')
     back_off = 3
     for acc in accs:
-        print('current acc is {}'.format(acc))
-        if acc in existing_fastqs:
+        logging.info('current acc is {}'.format(acc))
+        if acc in existing_fastqs or acc in ['SRR5575952', 'SRR2960573']:
+            logging.info('skipping acc {}'.format(acc))
             continue
-        if acc == 'SRR5575952':
-            continue
-        if acc == 'SRR2960573':
-            continue
-        print('collecting fastq {}'.format(acc))
+        logging.info('\ncollecting fastq {}'.format(acc))
         bin_time = 0
         bin_start = datetime.now()
         delay = 1
