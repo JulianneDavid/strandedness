@@ -74,6 +74,7 @@ def collect_fastq_files(fastq_path, accs, fail_file, success_file):
     fastq_output = os.path.join(out_path, 'original_fastq_files')
     back_off = 3
     for acc in accs:
+        print('current acc is {}'.format(acc))
         if acc in existing_fastqs:
             continue
         if acc == 'SRR5575952':
@@ -314,7 +315,7 @@ if __name__ == '__main__':
     pv_weigh = os.path.join(out_path, 'weighted_pvals_{}.txt'.format(name_tag))
 
     accession_numbers = sample_stranded_experiments(sra_file, sample_size)
-
+    print('starting collection of fastq files')
     fastq_path = collect_fastq_files(fastq_dump, accession_numbers, fail_file,
                                      success_file)
 
