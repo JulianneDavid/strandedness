@@ -290,6 +290,8 @@ if __name__ == '__main__':
                         default='INFO', help='choose what logging mode to run')
     parser.add_argument('--downloaded-sras', '-d', help='Give the path to file'
                         ' with already-downloaded sra accession numbers.')
+    parser.add_argument('--quantified-sras', '-qs', help='Give the path to '
+                        'file with already-quantified sra accession numbers.')
 
     args = parser.parse_args()
     sra_file = args.stranded_list
@@ -300,6 +302,7 @@ if __name__ == '__main__':
     out_path = args.output_path
     log_mode = args.log_level
     success_file = args.downloaded_sras
+    quantify_file = args.quantified_sras
 
     name_tag = os.path.basename(sra_file).split('.')[0]
     now = str(datetime.now())
@@ -317,6 +320,16 @@ if __name__ == '__main__':
     fastq_path = collect_fastq_files(fastq_dump, accession_numbers, fail_file,
                                      success_file)
 
+    with open(quantify_file, 'r') as q_record:
+        quantified_fastqs = []
+        for line in q_record:
+            quantified_fastqs.append(line.strip('\n'))
     for acc in accession_numbers:
+        if acc in quantified_fastqs:
+            logging.info('acc {} already quantified; skipping'.format(acc))
+            continue
         paired = artificially_unstrand(acc, fastq_path)
-        call_salmon_quantification(salmon, salmon_index, out_path, acc, paired)
+        call_salmon_quantification(salmon, salmon_index, out_path, acc,
+                                   paired)
+        with open(quantify_file, 'a') as success:
+            success.write('{}\n'.format(acc))
